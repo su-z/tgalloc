@@ -5,6 +5,8 @@
 #ifndef TGALLOC_H
 #define TGALLOC_H
 
+// #define __TGALLOC_DISPLAY_C_VERSION__
+
 /**
  * @file tgalloc.h
  * @brief A type-generic memory allocation library for C
@@ -16,7 +18,6 @@
  */
 
 #include <stdlib.h>
-#include <stdalign.h>
 
 /**
  * @typedef dflt_allo_t
@@ -130,6 +131,8 @@ static void _tgalloc_dflt_free_aligned_sized(dflt_allo_t * self, void const * pt
    #define _tgalloc_typeof(x) typeof(x)
 #elif defined(__GNUC__) || defined(__clang__)
    // GCC and Clang support __typeof__
+   // Enable alignof support in C11 mode
+   #include <stdalign.h>
    #define _tgalloc_typeof(x) __typeof__(x)
 #elif defined(_MSC_VER) && defined(_MSVC_LANG) && _MSVC_LANG >= 202000L
    // MSVC with C++23 mode might have typeof support
@@ -169,42 +172,17 @@ static void _tgalloc_dflt_free_aligned_sized(dflt_allo_t * self, void const * pt
 #define _tgalloc_palloc2(ptr, len) \
     ((ptr) = (_tgalloc_typeof(ptr))TGA_ALLOC_A_S(TGA, _tgalloc_alignof(ptr), _tgalloc_sizeof_n(ptr, len)))
 
-// Helper macros for argument counting and selection in variadic macros
-#define _tgalloc_palloc_arg2(x1, x2, ...) x2
-#define _tgalloc_palloc_choose(...) \
-    _tgalloc_palloc_arg2(__VA_ARGS__ __VA_OPT__(,) _tgalloc_palloc2, _tgalloc_palloc1)
-
-/**
- * @brief Allocate memory for an object or array of objects
- * 
- * Allocates memory for a single object or an array of objects, automatically deriving
- * the type information from the pointer. For arrays, provide the length as the second parameter.
- * 
- * @param ptr Pointer that will receive the allocated memory
- * @param ... Optional length parameter for array allocations
- * @return The assigned pointer (for chaining operations)
- */
-#define palloc(ptr, ...) _tgalloc_palloc_choose(__VA_ARGS__)(ptr __VA_OPT__(,) __VA_ARGS__)
-
 // Helper macro for freeing memory of a single object
 #define _tgalloc_pfree1(ptr) TGA_FREE_A_S(TGA, (void*)(ptr), _tgalloc_alignof(ptr), _tgalloc_sizeof(ptr))
 
 // Helper macro for freeing memory of an array of objects
 #define _tgalloc_pfree2(ptr, len) TGA_FREE_A_S(TGA, (void*)(ptr), _tgalloc_alignof(ptr), _tgalloc_sizeof_n(ptr, len))
 
-// Helper macro for choosing between single and array free functions
-#define _tgalloc_pfree_choose(...) _tgalloc_palloc_arg2(__VA_ARGS__ __VA_OPT__(,) _tgalloc_pfree2, _tgalloc_pfree1)
-
-/**
- * @brief Free memory allocated with palloc
- * 
- * Deallocates memory previously allocated with palloc. For arrays, provide the 
- * same length parameter that was used during allocation.
- * 
- * @param ptr Pointer to the memory to free
- * @param ... Optional length parameter for array allocations
- */
-#define pfree(ptr, ...) _tgalloc_pfree_choose(__VA_ARGS__)(ptr __VA_OPT__(,) __VA_ARGS__)
+#if defined(__STDC_VERSION__) && __STDC_VERSION__ >= 202000L
+    #include "__tgalloc_c23.h"
+#else
+    #include "__tgalloc_c99.h"
+#endif
 
 /**
  * @brief Allocate memory through a pointer to pointer
@@ -218,34 +196,34 @@ static void _tgalloc_dflt_free_aligned_sized(dflt_allo_t * self, void const * pt
 
 #define ppalloc(pptr, ...) palloc(*(pptr) __VA_OPT__(,) __VA_ARGS__)
 
-// Uncomment to enable ppfree functionality
-// /**
-//  * @brief Free memory allocated with ppalloc
-//  * 
-//  * Indirection helper that allows freeing memory allocated with ppalloc
-//  * through a pointer to pointer.
-//  * 
-//  * @param pptr Pointer to pointer to the memory to free
-//  * @param ... Optional length parameter for array allocations
-//  */
-// #define ppfree(pptr, ...) pfree(*(pptr) __VA_OPT__(,) __VA_ARGS__)
-
-// Helper macro for reallocating memory
+ // Uncomment to enable ppfree functionality
+ // /**
+ //  * @brief Free memory allocated with ppalloc
+ //  * 
+ //  * Indirection helper that allows freeing memory allocated with ppalloc
+ //  * through a pointer to pointer.
+ //  * 
+ //  * @param pptr Pointer to pointer to the memory to free
+ //  * @param ... Optional length parameter for array allocations
+ //  */
+ // #define ppfree(pptr, ...) pfree(*(pptr) __VA_OPT__(,) __VA_ARGS__)
+ 
+ // Helper macro for reallocating memory
 #define _tgalloc_realloc2(ptr, old_len, new_len) TGA_REALLOC_A_S(TGA, (void*)(ptr), _tgalloc_alignof(ptr), \
-    _tgalloc_sizeof_n(ptr, old_len), _tgalloc_sizeof_n(ptr, new_len))
-
-/**
- * @brief Reallocate memory through a pointer to pointer
- * 
- * Resizes a previously allocated array to a new size while preserving its contents.
- * If new_len is larger than old_len, the additional elements will be uninitialized.
- * If new_len is smaller, the excess elements will be lost.
- * 
- * @param pptr    Pointer to pointer to the memory to reallocate
- * @param old_len Current number of elements
- * @param new_len Desired number of elements after reallocation
- * @return The assigned pointer (for chaining operations)
- */
+     _tgalloc_sizeof_n(ptr, old_len), _tgalloc_sizeof_n(ptr, new_len))
+ 
+ /**
+  * @brief Reallocate memory through a pointer to pointer
+  * 
+  * Resizes a previously allocated array to a new size while preserving its contents.
+  * If new_len is larger than old_len, the additional elements will be uninitialized.
+  * If new_len is smaller, the excess elements will be lost.
+  * 
+  * @param pptr    Pointer to pointer to the memory to reallocate
+  * @param old_len Current number of elements
+  * @param new_len Desired number of elements after reallocation
+  * @return The assigned pointer (for chaining operations)
+  */
 #define pprealloc(pptr, old_len, new_len) (*(pptr)=_tgalloc_realloc2(*(pptr), old_len, new_len))
 
-#endif //TGALLOC_H
+#endif // TGALLOC_H

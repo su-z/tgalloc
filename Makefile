@@ -2,7 +2,7 @@
 
 # Compiler and flags
 CC = clang
-CFLAGS = -std=c2x -Wall -Wextra -pedantic -O2
+CFLAGS = -std=c2x -Wall -O2 # -Wextra -pedantic
 CPPFLAGS = -I.
 
 # Directories

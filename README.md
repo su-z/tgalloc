@@ -8,7 +8,7 @@ A header-only library that provides type-safe memory allocation, reallocation, a
 - **Alignment-aware**: Respects alignment requirements of allocated types
 - **Single and array allocations**: Unified interface for both single objects and arrays
 - **Custom allocator support**: Use your own allocator implementation
-- **Minimal dependencies**: Only requires C11 standard library
+- **Minimal dependencies**: Only requires C99 standard library
 
 ## Installation
 
@@ -264,6 +264,17 @@ void custom_free(custom_allocator_t* self, void const* ptr, size_t alignment, si
 ```
 
 This approach provides a clean way to switch between allocators at any point in your code. Just remember to always free memory using the same allocator that was used to allocate it.
+
+## Compatibility
+
+tgalloc supports both C99 and later standards with progressive enhancements:
+
+- **C99/C11 Compatibility**: The core functionality works with C99 compilers and above
+- **C23 Enhancements**: When compiled with C23 support (detected via `__STDC_VERSION__`), tgalloc automatically uses more readable syntax with features like `__VA_OPT__`
+
+The library detects the C standard at compile time and selects the appropriate implementation, ensuring both backward compatibility and taking advantage of newer language features when available.
+
+If alignment utilities like `alignof` is not detected by the codes, the default alignment of a data type is assumed to be either the size of it or `sizeof(void *)`, whichever is smaller.
 
 ## License
 
